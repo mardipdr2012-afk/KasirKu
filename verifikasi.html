@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2A8379"><title>Verifikasi Struk — KasirKu</title>
+<style>
+:root{--bg:#f4f7f6;--s:#fff;--t:#14211f;--m:#5a6b68;--ok:#157347;--bad:#b3261e;--b:#d7e0de}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1514;--s:#162120;--t:#e6efed;--m:#9db0ac;--ok:#5fd3a0;--bad:#ff8a80;--b:#2b3b39}}
+*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:16px;background:var(--bg);color:var(--t);font:16px/1.5 Inter,system-ui,sans-serif}
+.c{width:min(420px,100%);background:var(--s);border:1px solid var(--b);border-radius:20px;padding:28px 24px;text-align:center}
+.i{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;margin:0 auto 12px;font-size:32px;color:#fff;background:var(--m)}
+.ok .i{background:var(--ok)}.bad .i{background:var(--bad)}h1{font-size:20px;margin:0 0 6px}p{margin:4px 0;color:var(--m)}
+dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;text-align:left;margin:18px 0 0;font-size:14.5px}dt{color:var(--m)}dd{margin:0;font-weight:600;text-align:right;overflow-wrap:anywhere}
+</style></head><body>
+<main class="c" id="c" aria-live="polite"><div class="i">…</div><h1>Memeriksa keaslian…</h1></main>
+<script src="js/config.js"></script>
+<script>
+(function(){
+  var q=new URLSearchParams(location.search),c=document.getElementById('c');
+  var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(x){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]})};
+  function show(ok,h,p,rows){c.className='c '+(ok?'ok':'bad');c.innerHTML='<div class="i">'+(ok?'✓':'!')+'</div><h1>'+esc(h)+'</h1><p>'+esc(p)+'</p>'+(rows?'<dl>'+rows.map(function(r){return'<dt>'+r[0]+'</dt><dd>'+esc(r[1])+'</dd>'}).join('')+'</dl>':'')}
+  var u=(window.APP_CONFIG||{}).GAS_URL;
+  if(!q.get('n')||!q.get('s')||!u){show(false,'Tautan tidak lengkap','QR tidak berisi data verifikasi.');return}
+  fetch(u+'?action=verifikasi&n='+encodeURIComponent(q.get('n'))+'&s='+encodeURIComponent(q.get('s'))).then(function(r){return r.json()}).then(function(j){
+    if(!j.success){show(false,'Tidak dapat diverifikasi',j.message||'');return}
+    var d=j.data;if(!d.valid){show(false,'Struk TIDAK valid',d.alasan||'');return}
+    var rp=function(n){return'Rp '+Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.')};
+    show(true,'Struk asli',d.toko||'',[['Nomor nota',d.nota],['Waktu',d.waktu],['Total',rp(d.total)],['Status',d.status]]);
+  }).catch(function(){show(false,'Gagal terhubung','Periksa koneksi internet lalu coba lagi.')});
+})();
+</script></body></html>
