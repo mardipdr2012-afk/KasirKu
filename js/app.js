@@ -674,7 +674,7 @@ function renderProdTable() {
       return '<tr' + (p.aktif ? '' : ' class="void"') + '><td><div class="pname"><div class="thumb">' + thumb(p) + '</div><div><b class="nm">' + esc(p.nama) + '</b><small>' + esc(p.id) + (p.aktif ? '' : ' • nonaktif') + '</small></div></div></td><td class="hm"><span class="tag">' + esc(p.kat) + '</span></td><td class="r money">' + fmt(p.harga) + '</td>' +
         (own ? '<td class="r money hm">' + fmt(p.modal) + '</td><td class="r hm"><span class="tag ' + (mg >= 30 ? 'ok' : mg >= 10 ? 'info' : 'warn') + '">' + mg + '%</span></td>' : '') +
         '<td class="r"><span class="tag ' + (out ? 'bad' : lo ? 'warn' : 'ok') + '">' + (out ? 'Habis' : p.stok + ' pcs') + '</span></td><td class="r hm muted">' + p.min + '</td>' +
-        (own ? '<td class="r"><button class="btn sm" data-act="pstok" data-id="' + esc(p.id) + '">Stok</button> <button class="mini-act" style="display:inline-grid" data-act="pedit" data-id="' + esc(p.id) + '" aria-label="Ubah ' + esc(p.nama) + '">' + ic('edit', 'sm') + '</button></td>' : '') + '</tr>'; }).join('') + '</tbody></table>'
+        (own ? '<td class="r"><button class="btn sm" data-act="pstok" data-id="' + esc(p.id) + '">Stok</button> <button class="mini-act" style="display:inline-grid" data-act="pedit" data-id="' + esc(p.id) + '" aria-label="Ubah ' + esc(p.nama) + '">' + ic('edit', 'sm') + '</button> <button class="mini-act" style="display:inline-grid;color:var(--bad)" data-act="pdel" data-id="' + esc(p.id) + '" aria-label="Hapus ' + esc(p.nama) + '">' + ic('trash', 'sm') + '</button></td>' : '') + '</tr>'; }).join('') + '</tbody></table>'
     : '<div class="empty">' + ic('box') + '<b>Tidak ada produk</b><span>Ubah filter atau kata kunci.</span></div>';
   $('#pFoot').textContent = 'Menampilkan ' + list.length + ' dari ' + base.length + ' produk • data tersinkron dengan server';
 }
@@ -692,7 +692,8 @@ function openProductForm(id) {
     '<div class="field"><label for="pfA">Status</label><select id="pfA" class="input"><option value="1"' + (!p || p.aktif ? ' selected' : '') + '>Aktif (tampil di kasir)</option><option value="0"' + (p && !p.aktif ? ' selected' : '') + '>Nonaktif</option></select></div>' +
     '<div class="field" style="grid-column:1/-1"><label for="pfF">Foto produk (opsional)</label><div class="row"><div class="thumb" id="pfT" style="width:56px;height:56px">' + (p && p.foto ? thumb(p) : ic('image')) + '</div><input id="pfF" class="input" placeholder="https://… (otomatis terisi saat unggah)" value="' + esc(p ? p.foto : '') + '"><label class="btn sm" style="flex:none">' + ic('upload', 'sm') + ' Unggah<input id="pfU" type="file" accept="image/*" class="sr-only"></label></div><span class="hint" id="pfUh">Foto dikompres otomatis (maks. 800 px) lalu disimpan di Google Drive.</span></div>' +
     '<div class="alertbar" id="pfMg" style="grid-column:1/-1;background:var(--brand-soft);color:var(--brand-ink)"></div><p class="err" id="pfE" role="alert" style="grid-column:1/-1"></p></form>',
-    footer: '<button class="btn" data-close>Batal</button><button class="btn primary" id="pfOk">Simpan</button>' });
+    footer: (p ? '<button class="btn danger" id="pfDel" style="margin-right:auto">' + ic('trash', 'sm') + ' Hapus</button>' : '') + '<button class="btn" data-close>Batal</button><button class="btn primary" id="pfOk">Simpan</button>' });
+  if (p) m.$('#pfDel').onclick = () => { m.close(); deleteProduct(p.id); };
   const mg = () => { const h = +m.$('#pfH').value || 0, c = +m.$('#pfM').value || 0; m.$('#pfMg').textContent = h ? 'Laba per unit ' + fmt(h - c) + ' • margin ' + Math.round((h - c) / h * 100) + '%' : 'Isi harga jual & modal untuk melihat margin.'; };
   ['#pfH', '#pfM'].forEach(s => m.$(s).addEventListener('input', mg)); mg();
   m.$('#pfU').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; const h = m.$('#pfUh'); h.textContent = 'Mengompres & mengunggah…'; try { const url = await uploadImage(f, 'foto'); m.$('#pfF').value = url; m.$('#pfT').innerHTML = '<img src="' + esc(url) + '" alt="">'; h.textContent = 'Foto terunggah.'; } catch (x) { h.textContent = x.message; } });
@@ -709,6 +710,17 @@ function openProductForm(id) {
       saveCache(); m.close(); toast('Produk tersimpan.', 'ok'); renderAll();
     });
   };
+}
+async function deleteProduct(id) {
+  const p = S.pmap[id]; if (!p) return;
+  const ok = await confirmBox('Hapus produk?', '"' + p.nama + '" (' + p.id + ') akan dihapus dari daftar produk' + (p.stok > 0 ? ', sisa stok ' + p.stok + ' pcs dicatat sebagai stok keluar' : '') + '. Riwayat transaksi lama tidak berubah. Tindakan ini tidak bisa dibatalkan. Bila hanya ingin menyembunyikan dari kasir, pilih Nonaktif di menu Ubah.', 'Ya, hapus', true);
+  if (!ok) return;
+  try {
+    const r = await api('apiDeleteProduct', { id });
+    if (!r.success && r.code !== 'NOT_FOUND' && !/sudah dihapus/.test(r.message || '')) { toast('Gagal menghapus: ' + r.message, 'bad'); return; }
+    setProduk(S.produk.filter(x => x.id !== id)); S.cart = S.cart.filter(c => c.id !== id); saveCart(); saveCache(); S.repCache = {}; renderAll();
+    toast(r.success ? r.message : 'Produk sudah terhapus.', 'ok');
+  } catch (e) { toast('Koneksi gagal, produk belum dihapus.', 'bad'); }
 }
 function openStockForm(id) {
   const p = S.pmap[id]; if (!p) return; let jenis = 'Masuk';
@@ -964,7 +976,7 @@ const ACT = {
   clear() { clearCart(); }, pay() { openPay(); }, cartopen() { cartOpen(); }, cartclose() { cartClose(); },
   'rc-print'(a) { cetakStruk(findTx(a.dataset.id) || (S.lastSuccess && S.lastSuccess.tx)); }, 'rc-pdf'(a) { pdfReceipt(a.dataset.id, a); }, 'st-ed'() { window.StrukUI && StrukUI.editor(); }, 'st-pr'() { window.StrukUI && StrukUI.pengaturanPrinter(); },
   pcat(a) { S.pr.cat = a.dataset.c; renderProdTable(); }, plow() { S.pr.lowOnly = !S.pr.lowOnly; renderProdTable(); }, pinact() { S.pr.inactive = !S.pr.inactive; renderProdTable(); },
-  pnew() { openProductForm(); }, pedit(a) { openProductForm(a.dataset.id); }, pstok(a) { openStockForm(a.dataset.id); },
+  pnew() { openProductForm(); }, pedit(a) { openProductForm(a.dataset.id); }, pstok(a) { openStockForm(a.dataset.id); }, pdel(a) { deleteProduct(a.dataset.id); },
   rhsel(a) { S.rh.sel = a.dataset.id; rhTable(); rhDetail(); if (matchMedia('(max-width:1100px)').matches) { const t = findTx(S.rh.sel); if (t) { const m = modal({ title: 'Detail transaksi', drawer: true, body: detailHTML(t) }); m.el.addEventListener('click', e => { if (e.target.closest('[data-act=void]') || e.target.closest('[data-act=rc-print]') || e.target.closest('[data-act=rc-pdf]')) { /* tangani oleh delegasi global */ } }); } } },
   rhpg(a) { S.rh.page += +a.dataset.d; rhTable(); }, rhrefresh() { S.txCache = {}; S.rh.loading = false; rhLoad(); },
   rhpre(a) { const d = +a.dataset.d; S.rh.to = dayStr(0); S.rh.from = dayStr(d === 1 ? 1 : d); if (d === 1) S.rh.to = dayStr(1); S.rh.page = 1; $('#rhF').value = S.rh.from; $('#rhT').value = S.rh.to; rhLoad(); },

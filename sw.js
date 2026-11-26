@@ -2,7 +2,7 @@
    Tugas: (1) app shell tersimpan agar aplikasi terbuka instan & tetap terbuka saat offline,
           (2) TIDAK PERNAH menyentuh panggilan API Apps Script (data selalu langsung ke server),
           (3) pembaruan: file diperbarui di latar belakang, pengguna diberi tahu lewat banner. */
-const VERSI = 'kasirku-shell-v3';
+const VERSI = 'kasirku-shell-v4';
 const SHELL = ['./', 'index.html', 'css/style.css', 'js/config.js', 'js/app.js', 'js/pwa.js',
   'js/struk-engine.js', 'js/struk-printer.js', 'js/struk-ui.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
